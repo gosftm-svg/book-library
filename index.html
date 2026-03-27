@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📚 도서 대여 관리 시스템</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0e0c;
+      --surface: #1a1915;
+      --surface2: #242320;
+      --border: #2e2c28;
+      --accent: #c9a96e;
+      --accent2: #e8c98a;
+      --text: #f0ece4;
+      --text-muted: #8a8478;
+      --text-dim: #5a5650;
+      --green: #5a8a6a;
+      --red: #8a4a4a;
+      --green-light: #7ab890;
+      --red-light: #b07070;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans KR', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.6;
+    }
+
+    #root { min-height: 100vh; }
+
+    /* Setup screen */
+    .setup-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .setup-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 3rem;
+      max-width: 520px;
+      width: 100%;
+    }
+    .setup-logo {
+      font-family: 'Noto Serif KR', serif;
+      font-size: 2rem;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+    .setup-sub {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .setup-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .setup-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-family: monospace;
+      font-size: 0.85rem;
+      margin-bottom: 1.25rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .setup-input:focus { border-color: var(--accent); }
+    .setup-btn {
+      width: 100%;
+      background: var(--accent);
+      color: #1a1510;
+      border: none;
+      border-radius: 8px;
+      padding: 0.9rem;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .setup-btn:hover { background: var(--accent2); transform: translateY(-1px); }
+    .setup-hint {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: var(--surface2);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .setup-hint code {
+      background: var(--bg);
+      padding: 0.1em 0.4em;
+      border-radius: 4px;
+      color: var(--accent);
+      font-size: 0.85em;
+    }
+
+    /* Main App */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: rgba(15,14,12,0.92);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    .header-logo {
+      font-family: 'Noto Serif KR', serif;
+      font-size: 1.3rem;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+    .header-stats {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .stat-item { display: flex; align-items: center; gap: 0.4rem; }
+    .stat-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    .stat-dot.green { background: var(--green-light); }
+    .stat-dot.red { background: var(--red-light); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .admin-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 0.4rem 1rem;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .admin-toggle.active {
+      background: rgba(201,169,110,0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .main-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* Search & Filter */
+    .search-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .search-input-wrap {
+      flex: 1;
+      min-width: 280px;
+      position: relative;
+    }
+    .search-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 1rem;
+    }
+    .search-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.8rem 1rem 0.8rem 2.8rem;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .filter-tab {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.15s;
+      font-family: 'Noto Sans KR', sans-serif;
+      white-space: nowrap;
+    }
+    .filter-tab:hover { border-color: var(--accent); color: var(--text); }
+    .filter-tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #1a1510;
+      font-weight: 600;
+    }
+
+    /* Books Grid */
+    .books-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .book-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .book-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(201,169,110,0.1);
+    }
+    .book-cover {
+      width: 100%;
+      aspect-ratio: 2/3;
+      object-fit: cover;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+    .book-cover-placeholder {
+      width: 100%;
+      aspect-ratio: 2/3;
+      background: linear-gradient(135deg, var(--surface2) 0%, var(--bg) 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: var(--text-dim);
+    }
+    .book-cover-placeholder span { font-size: 2rem; }
+    .book-cover-placeholder p { font-size: 0.7rem; text-align: center; padding: 0 0.5rem; }
+    .book-info {
+      padding: 0.9rem;
+    }
+    .book-title {
+      font-family: 'Noto Serif KR', serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.3rem;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .book-author {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.2rem;
+    }
+    .book-publisher {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+    }
+    .book-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .status-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 100px;
+      letter-spacing: 0.05em;
+    }
+    .status-badge.available {
+      background: rgba(90,138,106,0.2);
+      color: var(--green-light);
+      border: 1px solid rgba(90,138,106,0.3);
+    }
+    .status-badge.lent {
+      background: rgba(138,74,74,0.2);
+      color: var(--red-light);
+      border: 1px solid rgba(138,74,74,0.3);
+    }
+    .toggle-btn {
+      font-size: 0.7rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-weight: 500;
+    }
+    .toggle-btn.to-lent {
+      background: rgba(138,74,74,0.25);
+      color: var(--red-light);
+    }
+    .toggle-btn.to-lent:hover { background: rgba(138,74,74,0.45); }
+    .toggle-btn.to-return {
+      background: rgba(90,138,106,0.25);
+      color: var(--green-light);
+    }
+    .toggle-btn.to-return:hover { background: rgba(90,138,106,0.45); }
+
+    .edit-btn, .del-btn {
+      position: absolute;
+      top: 0.5rem;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 5px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      opacity: 0;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .book-card:hover .edit-btn,
+    .book-card:hover .del-btn { opacity: 1; }
+    .edit-btn {
+      right: 2.2rem;
+      background: rgba(201,169,110,0.2);
+      color: var(--accent);
+    }
+    .del-btn {
+      right: 0.5rem;
+      background: rgba(138,74,74,0.2);
+      color: var(--red-light);
+    }
+
+    /* FAB - Add Book Button */
+    .fab {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--accent);
+      color: #1a1510;
+      border: none;
+      border-radius: 100px;
+      padding: 1rem 1.75rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      box-shadow: 0 8px 30px rgba(201,169,110,0.4);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      z-index: 50;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .fab:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(201,169,110,0.5); }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 560px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-title {
+      font-family: 'Noto Serif KR', serif;
+      font-size: 1.3rem;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+    }
+    .form-group { margin-bottom: 1rem; }
+    .form-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .form-input:focus, .form-select:focus { border-color: var(--accent); }
+    .form-select option { background: var(--bg); }
+
+    /* OCR Zone */
+    .ocr-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    .ocr-zone:hover { border-color: var(--accent); background: rgba(201,169,110,0.04); }
+    .ocr-zone.scanning {
+      border-color: var(--accent);
+      background: rgba(201,169,110,0.06);
+    }
+    .ocr-zone p { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem; }
+    .ocr-zone-icon { font-size: 2rem; }
+    .ocr-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 0 0 10px 10px;
+      transition: width 0.3s;
+    }
+
+    .api-search-btn {
+      background: rgba(201,169,110,0.15);
+      border: 1px solid rgba(201,169,110,0.3);
+      color: var(--accent);
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      transition: all 0.2s;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .api-search-btn:hover { background: rgba(201,169,110,0.25); }
+    .api-results {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .api-result-item {
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    .api-result-item:last-child { border-bottom: none; }
+    .api-result-item:hover { background: var(--surface2); }
+    .api-result-img {
+      width: 36px;
+      height: 50px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+    .api-result-info { flex: 1; overflow: hidden; }
+    .api-result-title { font-size: 0.85rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .api-result-author { font-size: 0.75rem; color: var(--text-muted); }
+
+    .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+    .btn-primary {
+      flex: 1;
+      background: var(--accent);
+      color: #1a1510;
+      border: none;
+      border-radius: 8px;
+      padding: 0.8rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      flex: 1;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.8rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 5rem 2rem;
+      color: var(--text-dim);
+    }
+    .empty-state-icon { font-size: 4rem; margin-bottom: 1rem; }
+    .empty-state h3 { font-family: 'Noto Serif KR', serif; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.85rem; }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 5rem;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text);
+      z-index: 999;
+      transition: transform 0.3s;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--green); color: var(--green-light); }
+    .toast.error { border-color: var(--red); color: var(--red-light); }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+    }
+    .page-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 0.5rem 0.9rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .page-btn:hover { border-color: var(--accent); color: var(--text); }
+    .page-btn.active { background: var(--accent); border-color: var(--accent); color: #1a1510; font-weight: 600; }
+    .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .header { padding: 1rem; }
+      .header-stats { display: none; }
+      .main-content { padding: 1rem; }
+      .books-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+      .fab span { display: none; }
+      .fab { padding: 1rem; border-radius: 50%; }
+    }
+
+    /* Animations */
+    .book-card { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Bulk Scan */
+    .bulk-scan-btn {
+      position: fixed;
+      bottom: 2rem;
+      right: 14rem;
+      background: var(--surface2);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 100px;
+      padding: 1rem 1.5rem;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      z-index: 50;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .bulk-scan-btn:hover { background: rgba(201,169,110,0.15); transform: translateY(-2px); }
+
+    .bulk-drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 14px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 1.5rem;
+    }
+    .bulk-drop-zone:hover, .bulk-drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(201,169,110,0.05);
+    }
+    .bulk-drop-zone-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+    .bulk-drop-zone p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+    .bulk-drop-zone small { color: var(--text-dim); font-size: 0.75rem; }
+
+    .bulk-progress-wrap {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .bulk-progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .bulk-progress-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .bulk-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    .bulk-results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .bulk-results-title { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+    .bulk-select-all {
+      font-size: 0.75rem;
+      color: var(--accent);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+
+    .bulk-list {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-height: 320px;
+      overflow-y: auto;
+      margin-bottom: 1.25rem;
+    }
+    .bulk-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .bulk-item:last-child { border-bottom: none; }
+    .bulk-item:hover { background: var(--surface2); }
+    .bulk-item input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+    .bulk-item-text {
+      flex: 1;
+      font-size: 0.85rem;
+      color: var(--text);
+      border: none;
+      background: transparent;
+      outline: none;
+      font-family: 'Noto Sans KR', sans-serif;
+      width: 100%;
+    }
+    .bulk-item-text:focus {
+      background: var(--surface2);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+    }
+    .bulk-item-del {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.2rem;
+    }
+    .bulk-item-del:hover { color: var(--red-light); }
+
+    .bulk-empty {
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 640px) {
+      .bulk-scan-btn { right: 5rem; bottom: 5rem; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ─── Supabase Client (lightweight) ───────────────────────────────
+function createClient(url, key) {
+  const headers = {
+    'apikey': key,
+    'Authorization': `Bearer ${key}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+
+  async function request(method, path, body) {
+    const res = await fetch(`${url}/rest/v1/${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  return {
+    from(table) {
+      let path = table;
+      let filters = [];
+      let opts = { method: 'GET', headers: { ...headers } };
+      const obj = {
+        select(cols = '*') { opts._select = cols; return obj; },
+        eq(col, val) { filters.push(`${col}=eq.${encodeURIComponent(val)}`); return obj; },
+        ilike(col, val) { filters.push(`${col}=ilike.${encodeURIComponent(val)}`); return obj; },
+        order(col, { ascending = true } = {}) { opts._order = `${col}.${ascending ? 'asc' : 'desc'}`; return obj; },
+        range(from, to) { opts._range = `${from}-${to}`; return obj; },
+        async get() {
+          let p = table + '?';
+          if (opts._select) p += `select=${opts._select}&`;
+          if (filters.length) p += filters.join('&') + '&';
+          if (opts._order) p += `order=${opts._order}&`;
+          const hdrs = { ...headers };
+          if (opts._range) hdrs['Range'] = opts._range;
+          const res = await fetch(`${url}/rest/v1/${p}`, { headers: hdrs });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const count = res.headers.get('content-range')?.split('/')[1];
+          const data = await res.json();
+          return { data, count: count ? parseInt(count) : data.length, error: null };
+        },
+        async insert(data) { return { data: await request('POST', table, data), error: null }; },
+        async update(data) {
+          let p = table + '?';
+          if (filters.length) p += filters.join('&');
+          return { data: await request('PATCH', p, data), error: null };
+        },
+        async delete() {
+          let p = table + '?';
+          if (filters.length) p += filters.join('&');
+          return { data: await request('DELETE', p), error: null };
+        }
+      };
+      return obj;
+    }
+  };
+}
+
+// ─── Google Books API ───────────────────────────────────────────
+async function searchGoogleBooks(query) {
+  try {
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5&langRestrict=ko`);
+    const data = await res.json();
+    if (!data.items) return [];
+    return data.items.map(item => ({
+      title: item.volumeInfo.title || '',
+      author: (item.volumeInfo.authors || []).join(', '),
+      publisher: item.volumeInfo.publisher || '',
+      cover_url: item.volumeInfo.imageLinks?.thumbnail || ''
+    }));
+  } catch { return []; }
+}
+
+// ─── Toast ─────────────────────────────────────────────────────
+function Toast({ msg, type }) {
+  return <div className={`toast show ${type}`}>{msg}</div>;
+}
+
+// ─── Setup Screen ──────────────────────────────────────────────
+function SetupScreen({ onConnect }) {
+  const [url, setUrl] = useState(localStorage.getItem('sb_url') || '');
+  const [key, setKey] = useState(localStorage.getItem('sb_key') || '');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleConnect() {
+    if (!url || !key) return setError('URL과 anon key를 입력하세요.');
+    setLoading(true); setError('');
+    try {
+      const client = createClient(url.replace(/\/$/, ''), key);
+      // test connection
+      await client.from('books').select('id').get();
+      localStorage.setItem('sb_url', url.replace(/\/$/, ''));
+      localStorage.setItem('sb_key', key);
+      onConnect(client);
+    } catch(e) {
+      if (e.message.includes('404') || e.message.includes('relation')) {
+        // Table doesn't exist — proceed but prompt to create
+        localStorage.setItem('sb_url', url.replace(/\/$/, ''));
+        localStorage.setItem('sb_key', key);
+        onConnect(createClient(url.replace(/\/$/, ''), key), true);
+      } else {
+        setError('연결 실패: ' + e.message);
+      }
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div className="setup-screen">
+      <div className="setup-card">
+        <div className="setup-logo">📚 도서관 관리</div>
+        <p className="setup-sub">Supabase 프로젝트와 연결하여 시작하세요.<br/>데이터는 여러분의 Supabase 프로젝트에 저장됩니다.</p>
+
+        <label className="setup-label">Supabase Project URL</label>
+        <input
+          className="setup-input"
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          placeholder="https://xxxx.supabase.co"
+        />
+        <label className="setup-label">Anon Public Key</label>
+        <input
+          className="setup-input"
+          value={key}
+          onChange={e => setKey(e.target.value)}
+          placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          type="password"
+        />
+        {error && <p style={{color:'var(--red-light)', fontSize:'0.8rem', marginBottom:'1rem'}}>{error}</p>}
+        <button className="setup-btn" onClick={handleConnect} disabled={loading}>
+          {loading ? '연결 중...' : '연결하기'}
+        </button>
+
+        <div className="setup-hint">
+          <strong style={{color:'var(--accent)'}}>Supabase 테이블 설정</strong><br/>
+          <code>books</code> 테이블에 다음 컬럼이 필요합니다:<br/>
+          <code>id</code> (int8, PK, identity) · <code>title</code> (text) · <code>author</code> (text) · <code>publisher</code> (text) · <code>is_lent</code> (bool, default false) · <code>cover_url</code> (text) · <code>created_at</code> (timestamptz, default now())<br/><br/>
+          Row Level Security를 OFF하거나 anon에 SELECT/INSERT/UPDATE/DELETE 권한을 허용하세요.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Book Modal ────────────────────────────────────────────────
+function BookModal({ book, onSave, onClose }) {
+  const [form, setForm] = useState(book || { title:'', author:'', publisher:'', cover_url:'', is_lent:false });
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [apiResults, setApiResults] = useState([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const fileRef = useRef();
+  const ocrRef = useRef();
+
+  function setField(k, v) { setForm(f => ({...f, [k]: v})); }
+
+  async function handleOCR(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScanning(true); setScanProgress(5);
+    try {
+      const { data: { text } } = await Tesseract.recognize(file, 'kor+eng', {
+        logger: m => {
+          if (m.status === 'recognizing text') setScanProgress(Math.round(m.progress * 90) + 5);
+        }
+      });
+      setScanProgress(100);
+      // Extract first meaningful line as title
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+      if (lines[0]) setField('title', lines[0]);
+      setTimeout(() => setScanning(false), 500);
+    } catch {
+      setScanning(false);
+    }
+  }
+
+  async function handleApiSearch() {
+    if (!form.title) return;
+    setApiLoading(true);
+    const results = await searchGoogleBooks(form.title);
+    setApiResults(results);
+    setApiLoading(false);
+  }
+
+  function selectApiResult(r) {
+    setForm(f => ({...f, ...r}));
+    setApiResults([]);
+  }
+
+  async function handleSave() {
+    if (!form.title) return;
+    setSaving(true);
+    await onSave(form);
+    setSaving(false);
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-title">{book?.id ? '도서 수정' : '도서 등록'}</div>
+
+        {/* OCR Upload */}
+        <div className={`ocr-zone ${scanning ? 'scanning' : ''}`} onClick={() => fileRef.current?.click()}>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleOCR} />
+          <div className="ocr-zone-icon">📷</div>
+          <p>{scanning ? `인식 중... ${scanProgress}%` : '책 표지 이미지를 업로드하면 제목을 자동 추출합니다'}</p>
+          {scanning && <div className="ocr-progress" style={{width:`${scanProgress}%`}} />}
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">제목 *</label>
+          <input className="form-input" value={form.title} onChange={e => setField('title', e.target.value)} placeholder="도서 제목" />
+        </div>
+
+        <button className="api-search-btn" onClick={handleApiSearch} disabled={apiLoading}>
+          {apiLoading ? '검색 중...' : '🔍 Google Books에서 정보 가져오기'}
+        </button>
+
+        {apiResults.length > 0 && (
+          <div className="api-results">
+            {apiResults.map((r, i) => (
+              <div key={i} className="api-result-item" onClick={() => selectApiResult(r)}>
+                {r.cover_url && <img src={r.cover_url} className="api-result-img" alt="" onError={e => e.target.style.display='none'} />}
+                <div className="api-result-info">
+                  <div className="api-result-title">{r.title}</div>
+                  <div className="api-result-author">{r.author} · {r.publisher}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="form-group">
+          <label className="form-label">저자</label>
+          <input className="form-input" value={form.author} onChange={e => setField('author', e.target.value)} placeholder="저자명" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">출판사</label>
+          <input className="form-input" value={form.publisher} onChange={e => setField('publisher', e.target.value)} placeholder="출판사명" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">표지 이미지 URL</label>
+          <input className="form-input" value={form.cover_url} onChange={e => setField('cover_url', e.target.value)} placeholder="https://..." />
+        </div>
+        <div className="form-group">
+          <label className="form-label">대여 상태</label>
+          <select className="form-select" value={form.is_lent ? 'true' : 'false'} onChange={e => setField('is_lent', e.target.value === 'true')}>
+            <option value="false">대여 가능</option>
+            <option value="true">대여 중</option>
+          </select>
+        </div>
+
+        <div className="modal-actions">
+          <button className="btn-secondary" onClick={onClose}>취소</button>
+          <button className="btn-primary" onClick={handleSave} disabled={saving || !form.title}>
+            {saving ? '저장 중...' : (book?.id ? '수정하기' : '등록하기')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bulk Text Modal ───────────────────────────────────────────
+// 단계: 1) 제목 입력  2) 자동 검색  3) 결과 확인 후 등록
+function BulkScanModal({ onSaveAll, onClose }) {
+  const [step, setStep] = useState(1); // 1: 입력, 2: 검색중, 3: 결과확인
+  const [rawText, setRawText] = useState('');
+  const [items, setItems] = useState([]); // {id, title, author, publisher, cover_url, checked, searching, notFound}
+  const [saving, setSaving] = useState(false);
+  const [searchProgress, setSearchProgress] = useState(0);
+  const idRef = useRef(0);
+  function makeId() { return ++idRef.current; }
+
+  // 제목 목록 파싱
+  function parseTitles(text) {
+    return text.split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 0);
+  }
+
+  // Google Books + Open Library 병렬 검색
+  async function searchBook(title) {
+    // 1. Google Books
+    try {
+      const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(title)}&maxResults=1&langRestrict=ko`);
+      const data = await res.json();
+      if (data.items?.length > 0) {
+        const v = data.items[0].volumeInfo;
+        return {
+          title: v.title || title,
+          author: (v.authors || []).join(', '),
+          publisher: v.publisher || '',
+          cover_url: v.imageLinks?.thumbnail?.replace('http:', 'https:') || ''
+        };
+      }
+    } catch {}
+
+    // 2. Google Books 영어 재시도
+    try {
+      const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(title)}&maxResults=1`);
+      const data = await res.json();
+      if (data.items?.length > 0) {
+        const v = data.items[0].volumeInfo;
+        return {
+          title: v.title || title,
+          author: (v.authors || []).join(', '),
+          publisher: v.publisher || '',
+          cover_url: v.imageLinks?.thumbnail?.replace('http:', 'https:') || ''
+        };
+      }
+    } catch {}
+
+    return null; // 못찾음
+  }
+
+  async function handleSearch() {
+    const titles = parseTitles(rawText);
+    if (titles.length === 0) return;
+
+    // 초기 아이템 세팅
+    const initial = titles.map(t => ({
+      id: makeId(), title: t, author: '', publisher: '', cover_url: '',
+      checked: true, searching: true, notFound: false
+    }));
+    setItems(initial);
+    setStep(2);
+    setSearchProgress(0);
+
+    // 순차 검색 (API 부하 방지)
+    for (let i = 0; i < initial.length; i++) {
+      const item = initial[i];
+      const result = await searchBook(item.title);
+      setItems(prev => prev.map(it => it.id === item.id ? {
+        ...it,
+        searching: false,
+        notFound: !result,
+        title: result?.title || it.title,
+        author: result?.author || '',
+        publisher: result?.publisher || '',
+        cover_url: result?.cover_url || ''
+      } : it));
+      setSearchProgress(Math.round(((i + 1) / initial.length) * 100));
+      await new Promise(r => setTimeout(r, 200)); // 0.2초 딜레이
+    }
+    setStep(3);
+  }
+
+  function updateItem(id, key, val) {
+    setItems(prev => prev.map(it => it.id === id ? {...it, [key]: val} : it));
+  }
+  function toggleItem(id) {
+    setItems(prev => prev.map(it => it.id === id ? {...it, checked: !it.checked} : it));
+  }
+  function removeItem(id) {
+    setItems(prev => prev.filter(it => it.id !== id));
+  }
+  function selectAll(v) {
+    setItems(prev => prev.map(it => ({...it, checked: v})));
+  }
+
+  async function handleSave() {
+    const selected = items.filter(it => it.checked);
+    if (!selected.length) return;
+    setSaving(true);
+    await onSaveAll(selected.map(it => ({
+      title: it.title, author: it.author,
+      publisher: it.publisher, cover_url: it.cover_url, is_lent: false
+    })));
+    setSaving(false);
+  }
+
+  const checkedCount = items.filter(it => it.checked).length;
+  const doneCount = items.filter(it => !it.searching).length;
+  const notFoundCount = items.filter(it => it.notFound).length;
+
+  return (
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{maxWidth: '680px'}}>
+
+        {/* STEP 1: 제목 입력 */}
+        {step === 1 && (
+          <>
+            <div className="modal-title">📝 책 제목으로 일괄 등록</div>
+            <p style={{color:'var(--text-muted)', fontSize:'0.85rem', marginBottom:'1rem', lineHeight:'1.7'}}>
+              책 제목을 한 줄에 하나씩 입력하세요.<br/>
+              자동으로 저자, 출판사, 표지 이미지를 찾아드려요! 🔍
+            </p>
+            <div className="form-group">
+              <label className="form-label">책 제목 목록 (한 줄에 하나씩)</label>
+              <textarea
+                className="form-input"
+                style={{height:'240px', resize:'vertical', lineHeight:'1.8'}}
+                value={rawText}
+                onChange={e => setRawText(e.target.value)}
+                placeholder={"82년생 김지영\n채식주의자\n아몬드\n해리 포터와 마법사의 돌\n어린 왕자"}
+              />
+            </div>
+            <p style={{color:'var(--text-dim)', fontSize:'0.75rem', marginBottom:'1.5rem'}}>
+              총 {parseTitles(rawText).length}권 입력됨
+            </p>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={onClose}>취소</button>
+              <button
+                className="btn-primary"
+                onClick={handleSearch}
+                disabled={parseTitles(rawText).length === 0}
+              >
+                🔍 정보 자동 검색하기
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* STEP 2: 검색 중 */}
+        {step === 2 && (
+          <>
+            <div className="modal-title">🔍 정보 검색 중...</div>
+            <div className="bulk-progress-wrap" style={{marginBottom:'1.5rem'}}>
+              <div className="bulk-progress-label">
+                <span>{doneCount} / {items.length}권 검색 완료</span>
+                <span>{searchProgress}%</span>
+              </div>
+              <div className="bulk-progress-bar">
+                <div className="bulk-progress-fill" style={{width:`${searchProgress}%`}} />
+              </div>
+            </div>
+            <div className="bulk-list">
+              {items.map(it => (
+                <div key={it.id} className="bulk-item" style={{gap:'0.5rem'}}>
+                  {it.searching
+                    ? <span style={{color:'var(--text-dim)', fontSize:'0.8rem', animation:'pulse 1s infinite'}}>⏳</span>
+                    : it.notFound
+                      ? <span style={{color:'var(--red-light)', fontSize:'0.8rem'}}>❓</span>
+                      : <span style={{color:'var(--green-light)', fontSize:'0.8rem'}}>✅</span>
+                  }
+                  <span style={{flex:1, fontSize:'0.85rem', color: it.searching ? 'var(--text-muted)' : 'var(--text)'}}>
+                    {it.title}
+                  </span>
+                  {!it.searching && !it.notFound && (
+                    <span style={{fontSize:'0.75rem', color:'var(--text-dim)'}}>
+                      {it.author}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* STEP 3: 결과 확인 */}
+        {step === 3 && (
+          <>
+            <div className="modal-title">✅ 검색 완료! 확인 후 등록하세요</div>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem'}}>
+              <span style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>
+                {checkedCount}권 선택됨
+                {notFoundCount > 0 && <span style={{color:'var(--red-light)'}}> · {notFoundCount}권 정보 없음(❓)</span>}
+              </span>
+              <div style={{display:'flex', gap:'0.75rem'}}>
+                <button className="bulk-select-all" onClick={() => selectAll(true)}>전체 선택</button>
+                <button className="bulk-select-all" onClick={() => selectAll(false)}>전체 해제</button>
+              </div>
+            </div>
+            <div className="bulk-list" style={{maxHeight:'380px'}}>
+              {items.map(it => (
+                <div key={it.id} className="bulk-item" style={{alignItems:'flex-start', gap:'0.75rem', padding:'0.9rem 1rem'}}>
+                  <input type="checkbox" checked={it.checked} onChange={() => toggleItem(it.id)} style={{marginTop:'0.2rem'}} />
+                  {it.cover_url
+                    ? <img src={it.cover_url} style={{width:'36px', height:'50px', objectFit:'cover', borderRadius:'4px', flexShrink:0}} onError={e => e.target.style.display='none'} />
+                    : <div style={{width:'36px', height:'50px', background:'var(--surface2)', borderRadius:'4px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.2rem'}}>📖</div>
+                  }
+                  <div style={{flex:1, minWidth:0}}>
+                    <input
+                      className="bulk-item-text"
+                      value={it.title}
+                      onChange={e => updateItem(it.id, 'title', e.target.value)}
+                      style={{fontWeight:600, marginBottom:'0.25rem', display:'block'}}
+                      placeholder="제목"
+                    />
+                    <input
+                      className="bulk-item-text"
+                      value={it.author}
+                      onChange={e => updateItem(it.id, 'author', e.target.value)}
+                      style={{fontSize:'0.78rem', color:'var(--text-muted)', display:'block', marginBottom:'0.1rem'}}
+                      placeholder="저자 (직접 입력 가능)"
+                    />
+                    <input
+                      className="bulk-item-text"
+                      value={it.publisher}
+                      onChange={e => updateItem(it.id, 'publisher', e.target.value)}
+                      style={{fontSize:'0.75rem', color:'var(--text-dim)', display:'block'}}
+                      placeholder="출판사 (직접 입력 가능)"
+                    />
+                  </div>
+                  {it.notFound && <span style={{fontSize:'0.7rem', color:'var(--red-light)', flexShrink:0}}>❓미검색</span>}
+                  <button className="bulk-item-del" onClick={() => removeItem(it.id)} style={{marginTop:'0.2rem'}}>✕</button>
+                </div>
+              ))}
+            </div>
+            <div className="modal-actions" style={{marginTop:'1.25rem'}}>
+              <button className="btn-secondary" onClick={() => setStep(1)}>← 다시 입력</button>
+              <button
+                className="btn-primary"
+                onClick={handleSave}
+                disabled={saving || checkedCount === 0}
+              >
+                {saving ? '등록 중...' : `📚 ${checkedCount}권 등록하기`}
+              </button>
+            </div>
+          </>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────
+const PAGE_SIZE = 40;
+
+function App() {
+  const [client, setClient] = useState(null);
+  const [needsSetup, setNeedsSetup] = useState(!localStorage.getItem('sb_url'));
+  const [books, setBooks] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all'); // all | available | lent
+  const [page, setPage] = useState(1);
+  const [adminMode, setAdminMode] = useState(false);
+  const [modal, setModal] = useState(null); // null | 'add' | book_obj
+  const [bulkModal, setBulkModal] = useState(false);
+  const [toast, setToast] = useState(null);
+  const searchTimeout = useRef();
+
+  // Auto-connect if creds stored
+  useEffect(() => {
+    const url = localStorage.getItem('sb_url');
+    const key = localStorage.getItem('sb_key');
+    if (url && key) {
+      setClient(createClient(url, key));
+      setNeedsSetup(false);
+    }
+  }, []);
+
+  function showToast(msg, type = 'success') {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  const loadBooks = useCallback(async () => {
+    if (!client) return;
+    setLoading(true);
+    try {
+      let q = client.from('books').select('*').order('created_at', { ascending: false });
+      if (filter === 'available') q = q.eq('is_lent', false);
+      if (filter === 'lent') q = q.eq('is_lent', true);
+      if (search) q = q.ilike('title', `%${search}%`);
+      q = q.range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+      const { data, count } = await q.get();
+      setBooks(data || []);
+      setTotal(count || 0);
+    } catch(e) {
+      showToast('데이터 로드 실패: ' + e.message, 'error');
+    }
+    setLoading(false);
+  }, [client, filter, search, page]);
+
+  useEffect(() => { loadBooks(); }, [loadBooks]);
+
+  // Search debounce
+  function handleSearch(v) {
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => { setSearch(v); setPage(1); }, 400);
+  }
+
+  async function handleSaveAll(books) {
+    try {
+      for (const b of books) {
+        await client.from('books').insert(b);
+      }
+      showToast(`${books.length}권 등록 완료! 🎉`);
+      setBulkModal(false);
+      loadBooks();
+    } catch(e) {
+      showToast('등록 실패: ' + e.message, 'error');
+    }
+  }
+
+  async function handleSave(form) {
+    try {
+      if (form.id) {
+        await client.from('books').eq('id', form.id).update({
+          title: form.title, author: form.author, publisher: form.publisher,
+          cover_url: form.cover_url, is_lent: form.is_lent
+        });
+        showToast('수정 완료!');
+      } else {
+        await client.from('books').insert({
+          title: form.title, author: form.author, publisher: form.publisher,
+          cover_url: form.cover_url, is_lent: form.is_lent
+        });
+        showToast('등록 완료!');
+      }
+      setModal(null);
+      loadBooks();
+    } catch(e) {
+      showToast('저장 실패: ' + e.message, 'error');
+    }
+  }
+
+  async function toggleLent(book) {
+    try {
+      await client.from('books').eq('id', book.id).update({ is_lent: !book.is_lent });
+      setBooks(bs => bs.map(b => b.id === book.id ? {...b, is_lent: !b.is_lent} : b));
+      showToast(book.is_lent ? '반납 처리 완료' : '대여 처리 완료');
+    } catch(e) {
+      showToast('실패: ' + e.message, 'error');
+    }
+  }
+
+  async function deleteBook(book) {
+    if (!window.confirm(`"${book.title}" 도서를 삭제하시겠습니까?`)) return;
+    try {
+      await client.from('books').eq('id', book.id).delete();
+      showToast('삭제 완료');
+      loadBooks();
+    } catch(e) {
+      showToast('삭제 실패: ' + e.message, 'error');
+    }
+  }
+
+  const available = books.filter(b => !b.is_lent).length;
+  const lent = books.filter(b => b.is_lent).length;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  if (needsSetup || !client) {
+    return <SetupScreen onConnect={(c) => { setClient(c); setNeedsSetup(false); }} />;
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <header className="header">
+        <div className="header-logo">📚 도서 대여 관리</div>
+        <div className="header-stats">
+          <div className="stat-item">
+            <div className="stat-dot green" />
+            <span>대여 가능 {total > 0 ? Math.round((books.filter(b=>!b.is_lent).length/books.length)*100) || 0 : 0}%</span>
+          </div>
+          <div className="stat-item">
+            <div className="stat-dot red" />
+            <span>총 {total.toLocaleString()}권</span>
+          </div>
+        </div>
+        <button className={`admin-toggle ${adminMode ? 'active' : ''}`} onClick={() => setAdminMode(m => !m)}>
+          {adminMode ? '🔑 관리자 모드' : '👁 열람 모드'}
+        </button>
+      </header>
+
+      {/* Main */}
+      <div className="main-content">
+        {/* Search & Filter */}
+        <div className="search-bar">
+          <div className="search-input-wrap">
+            <span className="search-icon">🔍</span>
+            <input
+              className="search-input"
+              placeholder="제목으로 검색..."
+              onChange={e => handleSearch(e.target.value)}
+            />
+          </div>
+          <div className="filter-tabs">
+            {[['all','전체'],['available','대여 가능'],['lent','대여 중']].map(([v, label]) => (
+              <button key={v} className={`filter-tab ${filter === v ? 'active' : ''}`}
+                onClick={() => { setFilter(v); setPage(1); }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Books Grid */}
+        {loading ? (
+          <div className="loading">📖 불러오는 중...</div>
+        ) : books.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">📭</div>
+            <h3>도서가 없습니다</h3>
+            <p>{adminMode ? '우측 하단 버튼으로 도서를 등록하세요' : '검색 조건을 변경해보세요'}</p>
+          </div>
+        ) : (
+          <div className="books-grid">
+            {books.map(book => (
+              <div key={book.id} className="book-card">
+                {adminMode && (
+                  <>
+                    <button className="edit-btn" onClick={() => setModal(book)}>✏️</button>
+                    <button className="del-btn" onClick={() => deleteBook(book)}>🗑</button>
+                  </>
+                )}
+                {book.cover_url ? (
+                  <img
+                    src={book.cover_url}
+                    alt={book.title}
+                    style={{width:'100%', aspectRatio:'2/3', objectFit:'cover', background:'var(--surface2)'}}
+                    onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
+                  />
+                ) : null}
+                <div className="book-cover-placeholder" style={{display: book.cover_url ? 'none' : 'flex'}}>
+                  <span>📖</span>
+                  <p>{book.title}</p>
+                </div>
+                <div className="book-info">
+                  <div className="book-title">{book.title}</div>
+                  <div className="book-author">{book.author || '저자 미상'}</div>
+                  <div className="book-publisher">{book.publisher || ''}</div>
+                  <div className="book-status">
+                    <span className={`status-badge ${book.is_lent ? 'lent' : 'available'}`}>
+                      {book.is_lent ? '대여 중' : '대여 가능'}
+                    </span>
+                    {adminMode && (
+                      <button
+                        className={`toggle-btn ${book.is_lent ? 'to-return' : 'to-lent'}`}
+                        onClick={() => toggleLent(book)}
+                      >
+                        {book.is_lent ? '반납' : '대여'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button className="page-btn" onClick={() => setPage(p => p-1)} disabled={page === 1}>◀</button>
+            {Array.from({length: Math.min(5, totalPages)}, (_, i) => {
+              let p = page <= 3 ? i+1 : page - 2 + i;
+              if (p > totalPages) return null;
+              return (
+                <button key={p} className={`page-btn ${page === p ? 'active' : ''}`} onClick={() => setPage(p)}>{p}</button>
+              );
+            })}
+            <button className="page-btn" onClick={() => setPage(p => p+1)} disabled={page === totalPages}>▶</button>
+          </div>
+        )}
+      </div>
+
+      {/* FAB - Admin Only */}
+      {adminMode && (
+        <>
+          <button className="bulk-scan-btn" onClick={() => setBulkModal(true)}>
+            <span>📝</span>
+            <span>제목으로 일괄등록</span>
+          </button>
+          <button className="fab" onClick={() => setModal({})}>
+            <span>+</span>
+            <span>도서 등록</span>
+          </button>
+        </>
+      )}
+
+      {/* Bulk Modal */}
+      {bulkModal && (
+        <BulkScanModal
+          onSaveAll={handleSaveAll}
+          onClose={() => setBulkModal(false)}
+        />
+      )}
+
+      {/* Modal */}
+      {modal !== null && (
+        <BookModal
+          book={modal?.id !== undefined ? modal : null}
+          onSave={handleSave}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && <Toast msg={toast.msg} type={toast.type} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
